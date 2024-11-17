@@ -1,0 +1,79 @@
+---
+- hosts: app_servers
+  become: true
+  vars:
+    # These variables should be customized or set through external inventory files
+    app_name: "julia_app"
+    docker_image: "julia-app:latest"
+    db_host: "{{ lookup('env', 'DB_HOST') }}"
+    db_name: "{{ lookup('env', 'DB_NAME') }}"
+    db_user: "{{ lookup('env', 'DB_USER') }}"
+    db_password: "{{ lookup('env', 'DB_PASSWORD') }}"
+    app_port: 8080
+    nginx_port: 80
+
+  tasks:
+
+    - name: Update and upgrade apt packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Install necessary packages (Docker, NGINX)
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+          - nginx
+        state: present
+
+    - name: Ensure Docker service is started
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Pull Docker image for Julia app
+      docker_image:
+        name: "{{ docker_image }}"
+        source: build
+        path: /app
+
+    - name: Run Docker container for Julia app
+      docker_container:
+        name: "{{ app_name }}"
+        image: "{{ docker_image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "8080:{{ app_port }}"
+        env:
+          DB_HOST: "{{ db_host }}"
+          DB_NAME: "{{ db_name }}"
+          DB_USER: "{{ db_user }}"
+          DB_PASSWORD: "{{ db_password }}"
+
+    - name: Configure NGINX as reverse proxy for the Julia app
+      template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/sites-available/{{ app_name }}
+        mode: "0644"
+      notify:
+        - Restart NGINX
+
+    - name: Enable the NGINX site configuration
+      file:
+        src: /etc/nginx/sites-available/{{ app_name }}
+        dest: /etc/nginx/sites-enabled/{{ app_name }}
+        state: link
+
+    - name: Remove default NGINX site configuration
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+  handlers:
+    - name: Restart NGINX
+      service:
+        name: nginx
+        state: restarted

@@ -1,0 +1,42 @@
+---
+- name: Install NGINX
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Start and enable NGINX service
+  service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Copy NGINX site configuration
+  template:
+    src: "nginx.conf.j2"
+    dest: "/etc/nginx/sites-available/{{ app_name }}"
+    mode: "0644"
+  notify:
+    - Restart NGINX
+
+- name: Enable NGINX site
+  file:
+    src: "/etc/nginx/sites-available/{{ app_name }}"
+    dest: "/etc/nginx/sites-enabled/{{ app_name }}"
+    state: link
+
+- name: Remove default NGINX configuration
+  file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+
+- name: Test NGINX configuration
+  shell: nginx -t
+  register: nginx_test
+  failed_when: "'successful' not in nginx_test.stdout"
+  changed_when: false
+
+- name: Debug: Output NGINX test result
+  debug:
+    msg: "{{ nginx_test.stdout }}"
+

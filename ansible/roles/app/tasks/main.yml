@@ -1,0 +1,36 @@
+---
+- name: Pull Docker image for Julia app
+  docker_image:
+    name: "{{ docker_image }}"
+    source: build
+    path: /app  # Path to the Dockerfile
+    state: present
+
+- name: Ensure the Docker container for the Julia app is running
+  docker_container:
+    name: "{{ app_name }}"
+    image: "{{ docker_image }}"
+    state: started
+    restart_policy: always
+    ports:
+      - "8080:8080"  # Map container port 8080 to host port 8080
+    env:
+      DB_HOST: "{{ db_host }}"
+      DB_NAME: "{{ db_name }}"
+      DB_USER: "{{ db_user }}"
+      DB_PASSWORD: "{{ db_password }}"
+
+- name: Ensure Docker is started and enabled on boot
+  service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Check if Docker is running
+  shell: "docker ps | grep {{ app_name }}"
+  register: docker_status
+  changed_when: false
+
+- name: Debug: Output Docker status
+  debug:
+    msg: "Docker container {{ app_name }} is running: {{ docker_status.stdout }}"

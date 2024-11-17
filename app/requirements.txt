@@ -1,0 +1,4 @@
+boto3          # For AWS interaction (optional, for automation)
+psycopg2       # For PostgreSQL interaction (if using Python for database scripts)
+ansible        # If you need Ansible installed in your deployment environment
+
