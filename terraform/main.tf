@@ -1,5 +1,7 @@
 provider "aws" {
   region = var.aws_region
+  version = "4.67.0"
+
 }
 
 # VPC setup using the official VPC module
